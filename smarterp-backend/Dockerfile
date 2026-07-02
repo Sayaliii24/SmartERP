@@ -18,4 +18,5 @@ COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java","-jar","app.jar"]
+# Render sets PORT env var; Spring reads it via server.port=${PORT:8080}
+ENTRYPOINT ["java", "-Xmx256m", "-jar", "app.jar"]
