@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://smarter-backendd.onrender.com";
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const token = localStorage.getItem("smarterp_token");
