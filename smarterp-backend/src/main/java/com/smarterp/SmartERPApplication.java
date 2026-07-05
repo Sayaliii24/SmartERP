@@ -9,30 +9,41 @@ import java.net.URI;
 public class SmartERPApplication {
     public static void main(String[] args) {
         // Render sets DATABASE_URL as postgres://user:pass@host:port/db
-        // Convert it to JDBC format before Spring Boot starts
+        // Convert it to JDBC format + SSL before Spring Boot starts
         String databaseUrl = System.getenv("DATABASE_URL");
         if (databaseUrl != null && !databaseUrl.isEmpty()) {
-            if (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://")) {
-                try {
+            try {
+                String jdbcUrl;
+                String username;
+                String password;
+
+                if (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://")) {
                     String normalized = databaseUrl.replaceFirst("^postgres://", "postgresql://");
                     URI uri = new URI(normalized);
                     String[] userInfo = uri.getUserInfo().split(":", 2);
                     int port = uri.getPort() > 0 ? uri.getPort() : 5432;
 
-                    String jdbcUrl = "jdbc:postgresql://" + uri.getHost() + ":" + port + uri.getPath();
-                    System.setProperty("SPRING_DATASOURCE_URL", jdbcUrl);
-                    System.setProperty("SPRING_DATASOURCE_USERNAME", userInfo[0]);
-                    System.setProperty("SPRING_DATASOURCE_PASSWORD", userInfo.length > 1 ? userInfo[1] : "");
-
-                    // Also set spring properties directly
-                    System.setProperty("spring.datasource.url", jdbcUrl);
-                    System.setProperty("spring.datasource.username", userInfo[0]);
-                    System.setProperty("spring.datasource.password", userInfo.length > 1 ? userInfo[1] : "");
-                } catch (Exception e) {
-                    System.err.println("Could not parse DATABASE_URL: " + e.getMessage());
+                    // Render requires SSL
+                    jdbcUrl = "jdbc:postgresql://" + uri.getHost() + ":" + port + uri.getPath() + "?sslmode=require";
+                    username = userInfo[0];
+                    password = userInfo.length > 1 ? userInfo[1] : "";
+                } else if (databaseUrl.startsWith("jdbc:")) {
+                    jdbcUrl = databaseUrl;
+                    username = System.getenv().getOrDefault("DB_USERNAME", "postgres");
+                    password = System.getenv().getOrDefault("DB_PASSWORD", "postgres");
+                } else {
+                    System.err.println("Unknown DATABASE_URL format, skipping override.");
+                    SpringApplication.run(SmartERPApplication.class, args);
+                    return;
                 }
-            } else if (databaseUrl.startsWith("jdbc:")) {
-                System.setProperty("spring.datasource.url", databaseUrl);
+
+                System.setProperty("spring.datasource.url", jdbcUrl);
+                System.setProperty("spring.datasource.username", username);
+                System.setProperty("spring.datasource.password", password);
+                System.out.println("Database URL configured: jdbc:postgresql://" + new URI(jdbcUrl.replace("jdbc:", "")).getHost() + ":***");
+
+            } catch (Exception e) {
+                System.err.println("Failed to parse DATABASE_URL: " + e.getMessage());
             }
         }
 
